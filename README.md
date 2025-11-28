@@ -9,13 +9,15 @@ An intelligent bug classification system that uses machine learning to automatic
 - **Confidence Scores**: Provides confidence levels for predictions
 - **Alternative Suggestions**: Shows alternative predictions when confidence is lower
 - **Web Interface**: Clean, modern React interface for easy interaction
-- **REST API**: Flask-based backend API for integration with other systems
+- **REST API**: FastAPI-based backend API for integration with other systems
+- **Auto-generated Documentation**: Interactive API docs at `/docs` and `/redoc`
 
 ## Tech Stack
 
 **Backend:**
 - Python 3.8+
-- Flask (REST API)
+- FastAPI (Modern REST API framework)
+- Uvicorn (ASGI server)
 - scikit-learn (Machine Learning)
 - pandas (Data Processing)
 
@@ -57,14 +59,16 @@ The application will be available at `http://localhost:3000`
 ## Project Structure
 
 ```
-├── backend_api.py           # Flask REST API server
-├── requirements.txt         # Python dependencies
-├── package.json            # Node.js dependencies
-├── App.js                  # React main component
-├── App.css                 # Styling
-├── index.js                # React entry point
-├── SETUP_GUIDE.md          # Detailed setup instructions
-└── README.md               # This file
+├── backend_api.py                  # FastAPI REST API server
+├── simplified_bug_classifier.py    # ML model training script
+├── trained_bug_classifier.pkl      # Trained model (generated)
+├── requirements.txt                # Python dependencies
+├── package.json                    # Node.js dependencies
+├── App.js                          # React main component
+├── App.css                         # Styling
+├── index.js                        # React entry point
+├── SETUP_GUIDE.md                  # Detailed setup instructions
+└── README.md                       # This file
 ```
 
 ## Usage
@@ -82,30 +86,61 @@ The application will be available at `http://localhost:3000`
 
 ## API Endpoints
 
-### POST /predict
-Classifies a bug description.
+### POST /api/predict
+Classifies a single bug description.
 
 **Request:**
 ```json
 {
-  "bug_description": "Your bug description here"
+  "description": "Your bug description here"
 }
 ```
 
 **Response:**
 ```json
 {
-  "root_cause": "Database Issue",
-  "root_cause_confidence": 0.85,
-  "fix_team": "Backend Team",
-  "fix_team_confidence": 0.92,
-  "alternatives": {...},
-  "model_accuracy": {...}
+  "success": true,
+  "prediction": {
+    "rootCause": {
+      "primary": "Database Issue",
+      "confidence": 0.85,
+      "alternatives": [...]
+    },
+    "fixTeam": {
+      "primary": "Backend Team",
+      "confidence": 0.92,
+      "alternatives": [...]
+    }
+  },
+  "modelAccuracy": {
+    "rootCause": 0.78,
+    "fixTeam": 0.83
+  },
+  "description": "Your bug description here"
 }
 ```
 
-### GET /health
+### POST /api/batch-predict
+Classifies multiple bug descriptions at once.
+
+**Request:**
+```json
+{
+  "descriptions": ["Bug 1 description", "Bug 2 description"]
+}
+```
+
+### GET /api/health
 Health check endpoint.
+
+### GET /api/stats
+Get model statistics and available categories.
+
+### GET /docs
+Interactive API documentation (Swagger UI).
+
+### GET /redoc
+Alternative API documentation (ReDoc).
 
 ## Development
 
@@ -123,12 +158,16 @@ npm start
 
 For production deployment:
 
-1. Use a production WSGI server (e.g., Gunicorn) for the Flask backend
+1. Use Uvicorn with multiple workers for the FastAPI backend:
+   ```bash
+   uvicorn backend_api:app --host 0.0.0.0 --port 5000 --workers 4
+   ```
 2. Build the React app: `npm run build`
 3. Serve the built files with a web server (e.g., nginx)
 4. Configure environment variables
 5. Set up HTTPS
 6. Implement authentication and rate limiting
+7. Consider using Docker for containerization
 
 ## Contributing
 

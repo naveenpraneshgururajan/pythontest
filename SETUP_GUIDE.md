@@ -13,13 +13,15 @@
 
 1. **Install Python dependencies:**
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
+
+**Note:** This installs FastAPI, Uvicorn, and all ML dependencies. Pydantic may be installed as a FastAPI dependency, but we don't use it directly in our code.
 
 2. **Train your model:**
 ```bash
-# Edit simplified_bug_classifier.py line 24 with your Excel file path
-python simplified_bug_classifier.py
+# Edit simplified_bug_classifier.py line 32 with your Excel file path
+python3 simplified_bug_classifier.py
 ```
 
 This will create `trained_bug_classifier.pkl` which the API needs.
@@ -28,18 +30,22 @@ This will create `trained_bug_classifier.pkl` which the API needs.
 
 ## Step 2: Start the Backend API
 
-1. **Run the Flask API:**
+1. **Run the FastAPI server:**
 ```bash
-python backend_api.py
+python3 backend_api.py
 ```
 
 The API will start at `http://localhost:5000`
 
 You should see:
 ```
-STARTING BUG CLASSIFIER API SERVER
-API will be available at: http://localhost:5000
+STARTING BUG CLASSIFIER API SERVER (FastAPI)
+📡 API will be available at: http://localhost:5000
+📚 API Documentation: http://localhost:5000/docs
+📖 Alternative Docs: http://localhost:5000/redoc
 ```
+
+**✨ New Feature:** Visit `http://localhost:5000/docs` for interactive API documentation!
 
 ---
 
@@ -130,9 +136,9 @@ The frontend will open at `http://localhost:3000`
 bug-classifier/
 │
 ├── simplified_bug_classifier.py    # Model training script
-├── backend_api.py                  # Flask API
+├── backend_api.py                  # FastAPI server
 ├── trained_bug_classifier.pkl      # Trained model (created after training)
-├── requirements.txt                # Python dependencies
+├── requirements.txt                # Python dependencies (no direct Pydantic usage)
 ├── your_bug_data.xlsx             # Your Excel data
 │
 └── frontend/                       # React app folder
@@ -163,26 +169,44 @@ bug-classifier/
 - Login button not responding on mobile app
 - API returns 500 error when processing payment
 
+### 📚 Exploring the API:
+- Visit `http://localhost:5000/docs` for interactive Swagger UI documentation
+- Visit `http://localhost:5000/redoc` for alternative ReDoc documentation
+- Test API endpoints directly from the browser using the interactive docs
+
 ---
 
 ## 🔧 Troubleshooting
 
 ### Backend Issues:
 
+**"No module named 'fastapi'" error:**
+```bash
+# Reinstall dependencies
+pip3 install -r requirements.txt
+```
+
 **Port already in use:**
 ```bash
 # Change port in backend_api.py last line:
-app.run(debug=True, host='0.0.0.0', port=5001)  # Change to 5001
+uvicorn.run(app, host="0.0.0.0", port=5001, reload=True)  # Change to 5001
 ```
 
 **Model file not found:**
 - Make sure you run `simplified_bug_classifier.py` first
-- Check that `trained_bug_classifier.pkl` exists
+- Check that `trained_bug_classifier.pkl` exists in the same directory
+
+**Uvicorn not starting:**
+```bash
+# Make sure uvicorn is installed
+pip3 install uvicorn[standard]
+```
 
 ### Frontend Issues:
 
 **Cannot connect to backend:**
 - Make sure backend is running on port 5000
+- Check that you see "Uvicorn running on http://0.0.0.0:5000"
 - Check CORS is enabled in backend_api.py
 
 **npm install fails:**
@@ -192,6 +216,18 @@ npm cache clean --force
 npm install
 ```
 
+### API Testing:
+
+**Test the API without frontend:**
+```bash
+# Using curl
+curl -X POST http://localhost:5000/api/predict \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Database connection timeout during peak hours"}'
+
+# Or visit http://localhost:5000/docs for interactive testing
+```
+
 ---
 
 ## 🚀 Production Deployment
@@ -199,9 +235,16 @@ npm install
 ### For Production:
 
 1. **Backend:**
-   - Use Gunicorn instead of Flask dev server
+   ```bash
+   # Use Uvicorn with multiple workers
+   uvicorn backend_api:app --host 0.0.0.0 --port 5000 --workers 4
+
+   # Or use Gunicorn with Uvicorn workers
+   gunicorn backend_api:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000
+   ```
    - Add authentication/API keys
    - Use environment variables for config
+   - Enable access logs
 
 2. **Frontend:**
    - Build production version: `npm run build`
@@ -209,9 +252,10 @@ npm install
    - Update API endpoint URL
 
 3. **Security:**
-   - Add input validation
-   - Rate limiting
+   - Input validation (already implemented)
+   - Add rate limiting middleware
    - HTTPS certificates
+   - Update CORS settings for specific origins
 
 ---
 
