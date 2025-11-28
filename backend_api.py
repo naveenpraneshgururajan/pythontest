@@ -3,78 +3,13 @@ FASTAPI BACKEND API FOR BUG CLASSIFIER
 Modern REST API to serve predictions with automatic documentation
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import pandas as pd
 import joblib
 import os
 import uvicorn
-
-# ============================================================================
-# PYDANTIC MODELS FOR REQUEST/RESPONSE VALIDATION
-# ============================================================================
-
-class PredictionRequest(BaseModel):
-    description: str = Field(..., min_length=10, description="Bug description (minimum 10 characters)")
-
-    @validator('description')
-    def validate_description(cls, v):
-        if not v or len(v.strip()) < 10:
-            raise ValueError('Bug description too short (minimum 10 characters)')
-        return v
-
-class BatchPredictionRequest(BaseModel):
-    descriptions: List[str] = Field(..., description="List of bug descriptions")
-
-class AlternativePrediction(BaseModel):
-    cause: Optional[str] = None
-    team: Optional[str] = None
-    confidence: float
-
-class RootCausePrediction(BaseModel):
-    primary: str
-    confidence: float
-    alternatives: List[AlternativePrediction]
-
-class FixTeamPrediction(BaseModel):
-    primary: str
-    confidence: float
-    alternatives: List[AlternativePrediction]
-
-class ModelAccuracy(BaseModel):
-    rootCause: float
-    fixTeam: float
-
-class PredictionResult(BaseModel):
-    rootCause: RootCausePrediction
-    fixTeam: FixTeamPrediction
-
-class PredictionResponse(BaseModel):
-    success: bool
-    prediction: Optional[PredictionResult] = None
-    modelAccuracy: Optional[ModelAccuracy] = None
-    description: Optional[str] = None
-    error: Optional[str] = None
-
-class BatchPredictionResponse(BaseModel):
-    success: bool
-    predictions: Optional[List[PredictionResponse]] = None
-    count: Optional[int] = None
-    error: Optional[str] = None
-
-class HealthResponse(BaseModel):
-    status: str
-    model_loaded: bool
-    accuracy: Dict[str, str]
-
-class StatsResponse(BaseModel):
-    modelInfo: Dict
-
-class HomeResponse(BaseModel):
-    message: str
-    endpoints: Dict[str, str]
 
 # ============================================================================
 # INITIALIZE FASTAPI APP
@@ -213,7 +148,7 @@ def predict_bug(description: str) -> Dict:
 # API ROUTES
 # ============================================================================
 
-@app.get("/", response_model=HomeResponse, tags=["General"])
+@app.get("/", tags=["General"])
 async def home():
     """Home route to check if API is running"""
     return {
@@ -227,7 +162,7 @@ async def home():
         }
     }
 
-@app.get("/api/health", response_model=HealthResponse, tags=["General"])
+@app.get("/api/health", tags=["General"])
 async def health():
     """Health check endpoint"""
     return {
@@ -239,7 +174,7 @@ async def health():
         }
     }
 
-@app.get("/api/stats", response_model=StatsResponse, tags=["General"])
+@app.get("/api/stats", tags=["General"])
 async def stats():
     """Get model statistics"""
     return {
@@ -255,31 +190,51 @@ async def stats():
         }
     }
 
-@app.post("/api/predict", response_model=PredictionResponse, tags=["Predictions"])
-async def predict(request: PredictionRequest):
+@app.post("/api/predict", tags=["Predictions"])
+async def predict(request: Dict[str, Any] = Body(...)):
     """Main prediction endpoint"""
     try:
+        # Validate description field exists
+        if 'description' not in request:
+            raise HTTPException(status_code=400, detail='Missing required field: description')
+
+        description = request['description']
+
+        # Validate description length
+        if not description or len(str(description).strip()) < 10:
+            raise HTTPException(status_code=400, detail='Bug description too short (minimum 10 characters)')
+
         # Make prediction
-        result = predict_bug(request.description)
+        result = predict_bug(description)
 
         # Add the original description to response
-        result['description'] = request.description
+        result['description'] = description
 
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Server error: {str(e)}')
 
-@app.post("/api/batch-predict", response_model=BatchPredictionResponse, tags=["Predictions"])
-async def batch_predict(request: BatchPredictionRequest):
+@app.post("/api/batch-predict", tags=["Predictions"])
+async def batch_predict(request: Dict[str, Any] = Body(...)):
     """Batch prediction endpoint for multiple bugs"""
     try:
-        descriptions = request.descriptions
+        # Validate descriptions field exists
+        if 'descriptions' not in request:
+            raise HTTPException(status_code=400, detail='Missing required field: descriptions')
+
+        descriptions = request['descriptions']
+
+        # Validate it's a list
+        if not isinstance(descriptions, list):
+            raise HTTPException(status_code=400, detail='descriptions must be a list')
 
         # Process each description
         results = []
         for desc in descriptions:
-            if len(desc.strip()) < 10:
+            if len(str(desc).strip()) < 10:
                 results.append({
                     'success': False,
                     'error': 'Bug description too short (minimum 10 characters)',
@@ -296,6 +251,8 @@ async def batch_predict(request: BatchPredictionRequest):
             'count': len(results)
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Server error: {str(e)}')
 
