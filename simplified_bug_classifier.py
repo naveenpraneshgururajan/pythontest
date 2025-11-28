@@ -11,6 +11,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from imblearn.over_sampling import SMOTE
+from collections import Counter
 import joblib
 import warnings
 warnings.filterwarnings('ignore')
@@ -68,6 +70,36 @@ print(f"   Categories: {df['Rootcause'].unique()[:10]}")  # Show first 10
 
 print(f"\n👥 Unique Fix Teams: {df['Fixed by'].nunique()}")
 print(f"   Teams: {df['Fixed by'].unique()[:10]}")  # Show first 10
+
+# Display class distribution to identify imbalance
+print("\n⚖️ CLASS DISTRIBUTION ANALYSIS:")
+print("-" * 50)
+print("\nRoot Cause Distribution:")
+rootcause_dist = df['Rootcause'].value_counts()
+for label, count in rootcause_dist.items():
+    percentage = (count / len(df)) * 100
+    print(f"   {label:40s}: {count:4d} ({percentage:5.1f}%)")
+
+print("\nFix Team Distribution:")
+fixteam_dist = df['Fixed by'].value_counts()
+for label, count in fixteam_dist.items():
+    percentage = (count / len(df)) * 100
+    print(f"   {label:40s}: {count:4d} ({percentage:5.1f}%)")
+
+# Check for imbalance ratio
+max_class_root = rootcause_dist.max()
+min_class_root = rootcause_dist.min()
+imbalance_ratio_root = max_class_root / min_class_root
+
+max_class_team = fixteam_dist.max()
+min_class_team = fixteam_dist.min()
+imbalance_ratio_team = max_class_team / min_class_team
+
+print(f"\n⚠️ IMBALANCE RATIOS:")
+print(f"   Root Cause: {imbalance_ratio_root:.2f}:1 (max/min)")
+print(f"   Fix Team: {imbalance_ratio_team:.2f}:1 (max/min)")
+if imbalance_ratio_root > 3 or imbalance_ratio_team > 3:
+    print("   ⚠️ Significant class imbalance detected! Applying balancing techniques...")
 
 # ============================================================================
 # SECTION 3: TEXT PREPROCESSING
@@ -186,6 +218,35 @@ print(f"\n✅ Training set: {X_train.shape[0]} bugs")
 print(f"✅ Testing set: {X_test.shape[0]} bugs")
 
 # ============================================================================
+# SECTION 6.5: APPLY SMOTE TO BALANCE TRAINING DATA
+# ============================================================================
+print("\n" + "=" * 80)
+print("SECTION 6.5: APPLYING SMOTE TO BALANCE MINORITY CLASSES")
+print("=" * 80)
+
+print("\n🔄 Original training data distribution:")
+print(f"   Root Cause: {dict(Counter(y_train_root))}")
+print(f"   Fix Team: {dict(Counter(y_train_team))}")
+
+# Apply SMOTE to balance Root Cause training data
+print("\n⚖️ Applying SMOTE to Root Cause training data...")
+smote_root = SMOTE(random_state=42, k_neighbors=3)
+X_train_root_balanced, y_train_root_balanced = smote_root.fit_resample(X_train, y_train_root)
+
+print(f"   Before SMOTE: {X_train.shape[0]} samples")
+print(f"   After SMOTE: {X_train_root_balanced.shape[0]} samples")
+print(f"   Balanced distribution: {dict(Counter(y_train_root_balanced))}")
+
+# Apply SMOTE to balance Fix Team training data
+print("\n⚖️ Applying SMOTE to Fix Team training data...")
+smote_team = SMOTE(random_state=42, k_neighbors=3)
+X_train_team_balanced, y_train_team_balanced = smote_team.fit_resample(X_train, y_train_team)
+
+print(f"   Before SMOTE: {X_train.shape[0]} samples")
+print(f"   After SMOTE: {X_train_team_balanced.shape[0]} samples")
+print(f"   Balanced distribution: {dict(Counter(y_train_team_balanced))}")
+
+# ============================================================================
 # SECTION 7: TRAIN RANDOM FOREST MODEL FOR ROOT CAUSE
 # ============================================================================
 print("\n" + "=" * 80)
@@ -194,21 +255,24 @@ print("=" * 80)
 
 print("\n🌲 Creating Random Forest Classifier for Root Cause...")
 print("   Parameters:")
-print("   - Number of trees: 100")
-print("   - Max depth: 20")
+print("   - Number of trees: 200 (increased for better performance)")
+print("   - Max depth: 25")
+print("   - Class weight: balanced (handles remaining imbalance)")
 print("   - Random state: 42 (for reproducibility)")
 
-# Create and train the model
+# Create and train the model with balanced training data
 root_cause_model = RandomForestClassifier(
-    n_estimators=100,    # Number of trees in the forest
-    max_depth=20,        # Maximum depth of trees
-    min_samples_split=5, # Minimum samples to split a node
-    random_state=42,     # For reproducibility
-    n_jobs=-1           # Use all CPU cores
+    n_estimators=200,        # Increased number of trees
+    max_depth=25,            # Slightly deeper trees
+    min_samples_split=4,     # Adjusted for better generalization
+    min_samples_leaf=2,      # Minimum samples in leaf node
+    class_weight='balanced', # Additional balancing at model level
+    random_state=42,         # For reproducibility
+    n_jobs=-1               # Use all CPU cores
 )
 
-print("\n⏳ Training Root Cause model...")
-root_cause_model.fit(X_train, y_train_root)
+print("\n⏳ Training Root Cause model with SMOTE-balanced data...")
+root_cause_model.fit(X_train_root_balanced, y_train_root_balanced)
 print("✅ Root Cause model trained!")
 
 # Make predictions on test set
@@ -226,18 +290,25 @@ print("SECTION 8: TRAINING FIX TEAM PREDICTION MODEL")
 print("=" * 80)
 
 print("\n🌲 Creating Random Forest Classifier for Fix Team...")
+print("   Parameters:")
+print("   - Number of trees: 200 (increased for better performance)")
+print("   - Max depth: 25")
+print("   - Class weight: balanced (handles remaining imbalance)")
+print("   - Random state: 42 (for reproducibility)")
 
-# Create and train the model
+# Create and train the model with balanced training data
 fix_team_model = RandomForestClassifier(
-    n_estimators=100,
-    max_depth=20,
-    min_samples_split=5,
-    random_state=42,
-    n_jobs=-1
+    n_estimators=200,        # Increased number of trees
+    max_depth=25,            # Slightly deeper trees
+    min_samples_split=4,     # Adjusted for better generalization
+    min_samples_leaf=2,      # Minimum samples in leaf node
+    class_weight='balanced', # Additional balancing at model level
+    random_state=42,         # For reproducibility
+    n_jobs=-1               # Use all CPU cores
 )
 
-print("\n⏳ Training Fix Team model...")
-fix_team_model.fit(X_train, y_train_team)
+print("\n⏳ Training Fix Team model with SMOTE-balanced data...")
+fix_team_model.fit(X_train_team_balanced, y_train_team_balanced)
 print("✅ Fix Team model trained!")
 
 # Make predictions on test set
@@ -263,11 +334,30 @@ team_true_labels = fix_team_encoder.inverse_transform(y_test_team)
 
 print("\n📊 ROOT CAUSE CLASSIFICATION REPORT")
 print("-" * 50)
-print(classification_report(root_true_labels, root_pred_labels))
+print(classification_report(root_true_labels, root_pred_labels, zero_division=0))
+
+# Per-class accuracy for Root Cause
+print("\n📈 ROOT CAUSE PER-CLASS ACCURACY:")
+print("-" * 50)
+from sklearn.metrics import precision_recall_fscore_support
+precision, recall, f1, support = precision_recall_fscore_support(
+    root_true_labels, root_pred_labels, average=None, labels=root_cause_encoder.classes_, zero_division=0
+)
+for i, label in enumerate(root_cause_encoder.classes_):
+    print(f"   {label:40s}: Precision={precision[i]:.3f}, Recall={recall[i]:.3f}, F1={f1[i]:.3f}, Support={support[i]}")
 
 print("\n📊 FIX TEAM CLASSIFICATION REPORT")
 print("-" * 50)
-print(classification_report(team_true_labels, team_pred_labels))
+print(classification_report(team_true_labels, team_pred_labels, zero_division=0))
+
+# Per-class accuracy for Fix Team
+print("\n📈 FIX TEAM PER-CLASS ACCURACY:")
+print("-" * 50)
+precision_team, recall_team, f1_team, support_team = precision_recall_fscore_support(
+    team_true_labels, team_pred_labels, average=None, labels=fix_team_encoder.classes_, zero_division=0
+)
+for i, label in enumerate(fix_team_encoder.classes_):
+    print(f"   {label:40s}: Precision={precision_team[i]:.3f}, Recall={recall_team[i]:.3f}, F1={f1_team[i]:.3f}, Support={support_team[i]}")
 
 # ============================================================================
 # SECTION 10: FEATURE IMPORTANCE ANALYSIS
