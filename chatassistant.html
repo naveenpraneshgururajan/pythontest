@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f0f0f0;
+      }
+
+      .chat-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+      }
+
+      .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        text-align: center;
+        color: white;
+      }
+
+      .chat-header h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 5px 15px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        font-size: 12px;
+        margin-top: 10px;
+      }
+
+      .chat-body {
+        padding: 20px;
+        background: #ffffff;
+        min-height: 400px;
+      }
+
+      /* Bot messages */
+      .bot-message {
+        display: flex;
+        margin-bottom: 20px;
+        animation: slideIn 0.5s ease;
+      }
+
+      .bot-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        font-size: 20px;
+      }
+
+      .bot-bubble {
+        background: #f1f3f5;
+        padding: 12px 18px;
+        border-radius: 18px 18px 18px 4px;
+        max-width: 80%;
+        position: relative;
+      }
+
+      /* User messages */
+      .user-message {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+        animation: slideInRight 0.5s ease;
+      }
+
+      .user-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 18px;
+        border-radius: 18px 18px 4px 18px;
+        max-width: 80%;
+      }
+
+      /* Typing indicator */
+      .typing-indicator {
+        display: flex;
+        align-items: center;
+        margin: 20px 0;
+      }
+
+      .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #999;
+        border-radius: 50%;
+        margin: 0 2px;
+        animation: typing 1.4s infinite;
+      }
+
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.5;
+        }
+        30% {
+          transform: translateY(-10px);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      /* Quick action buttons */
+      .quick-actions {
+        padding: 15px;
+        background: #fafafa;
+        border-top: 1px solid #e0e0e0;
+        text-align: center;
+      }
+
+      .action-btn {
+        display: inline-block;
+        background: white;
+        border: 2px solid #667eea;
+        color: #667eea;
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-decoration: none;
+        margin: 5px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s;
+      }
+
+      .action-btn:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #764ba2;
+      }
+
+      /* Progress bars in chat */
+      .progress-container {
+        margin: 10px 0;
+      }
+
+      .progress-label {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+      }
+
+      .progress-bar {
+        background: #e0e0e0;
+        height: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 10px;
+        animation: progressGrow 2s ease;
+        color: white;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        padding-left: 10px;
+      }
+
+      @keyframes progressGrow {
+        from {
+          width: 0%;
+        }
+      }
+
+      /* Milestone cards in chat */
+      .milestone-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 12px;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .milestone-header {
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 5px;
+      }
+
+      .milestone-detail {
+        font-size: 13px;
+        color: #666;
+      }
+
+      /* Stats grid in chat */
+      .stats-grid {
+        display: table;
+        width: 100%;
+        margin: 10px 0;
+        border-collapse: separate;
+        border-spacing: 10px;
+      }
+
+      .stat-box {
+        display: table-cell;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        width: 50%;
+      }
+
+      .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        display: block;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        opacity: 0.9;
+        margin-top: 5px;
+      }
+
+      /* Animated elements */
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .fade-in-1 {
+        animation: fadeIn 1s ease;
+      }
+
+      .fade-in-2 {
+        animation: fadeIn 1s ease 0.5s both;
+      }
+
+      .fade-in-3 {
+        animation: fadeIn 1s ease 1s both;
+      }
+
+      .fade-in-4 {
+        animation: fadeIn 1s ease 1.5s both;
+      }
+
+      .fade-in-5 {
+        animation: fadeIn 1s ease 2s both;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <h2>🤖 AI Assistant</h2>
+        <div class="status pulse">🟢 Online - Ready to help</div>
+      </div>
+
+      <!-- Chat Body -->
+      <div class="chat-body">
+        <!-- Bot Welcome Message -->
+        <div class="bot-message fade-in-1">
+          <div class="bot-avatar">🤖</div>
+          <div class="bot-bubble">
+            <strong>Hello! I'm your AI Assistant</strong><br />
+            I've analyzed your Feature Team's 2024 journey and I'm excited to
+            share the insights with you! 🎯
+          </div>
+        </div>
+
+        <!-- User Message -->
+        <div class="user-message fade-in-2">
+          <div class="user-bubble"> Show me our 2024 highlights </div>
+        </div>
+
+        <!-- Bot Response with Typing -->
+        <div class="bot-message fade-in-3">
+          <div class="bot-avatar">🤖</div>
+          <div class="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
+
+        <!-- Bot Analysis Response -->
+        <div class="bot-message fade-in-4">
+          <div class="bot-avatar">🤖</div>
+          <div class="bot-bubble">
+            <strong>📊 2024 Performance Analysis Complete!</strong><br /><br />
+            Here's what I discovered about your amazing year:
+
+            <div class="stats-grid">
+              <div class="stat-box">
+                <span class="stat-number">47</span>
+                <span class="stat-label">Features Delivered</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-number">99.95%</span>
+                <span class="stat-label">Uptime Achieved</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Follow-up -->
+        <div class="user-message fade-in-5">
+          <div class="user-bubble"> Tell me about Q1 specifically </div>
+        </div>
+
+        <!-- Bot Q1 Response -->
+        <div class="bot-message fade-in-5">
+          <div class="bot-avatar">🤖</div>
+          <div class="bot-bubble">
+            <strong>Q1 2024 - Strong Foundation 🚀</strong><br /><br />
+            Let me break down your Q1 achievements:
+
+            <div class="milestone-card">
+              <div class="milestone-header">✅ January: Project Alpha</div>
+              <div class="milestone-detail"
+                >Successfully launched with 99.9% uptime</div
+              >
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: 100%">Complete</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="milestone-card">
+              <div class="milestone-header">✅ February: ML Integration</div>
+              <div class="milestone-detail"
+                >30% efficiency improvement achieved</div
+              >
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: 100%">Complete</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="milestone-card">
+              <div class="milestone-header">✅ March: Security Audit</div>
+              <div class="milestone-detail"
+                >Passed with zero critical vulnerabilities</div
+              >
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: 100%">Complete</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bot Summary -->
+        <div class="bot-message">
+          <div class="bot-avatar">🤖</div>
+          <div class="bot-bubble">
+            <strong>🎯 Key Impact:</strong><br />
+            • 10,000+ users served<br />
+            • 30% productivity gain<br />
+            • 100% security compliance<br /><br />
+            Would you like to explore other quarters? Click the options below!
+            👇
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <a href="#Q2" class="action-btn">📈 View Q2</a>
+        <a href="#Q3" class="action-btn">🚀 View Q3</a>
+        <a href="#Q4" class="action-btn">🎆 View Q4</a>
+        <a href="#Stats" class="action-btn">📊 Full Stats</a>
+        <a href="#Team" class="action-btn">👥 Team Info</a>
+      </div>
+
+      <!-- Additional Hidden Sections (revealed by clicking buttons) -->
+      <div style="margin-top: 300px" id="Q2">
+        <div class="chat-body">
+          <div class="bot-message">
+            <div class="bot-avatar">🤖</div>
+            <div class="bot-bubble">
+              <strong>Q2 2024 - Scaling Up 📈</strong><br /><br />
+              Here's your Q2 analysis:
+
+              <div class="milestone-card">
+                <div class="milestone-header">✅ April: Beta Dashboard</div>
+                <div class="milestone-detail"
+                  >50% increase in user engagement</div
+                >
+              </div>
+
+              <div class="milestone-card">
+                <div class="milestone-header">✅ May: Team Growth</div>
+                <div class="milestone-detail"
+                  >5 talented engineers joined the team</div
+                >
+              </div>
+
+              <div class="milestone-card">
+                <div class="milestone-header">✅ June: Performance Boost</div>
+                <div class="milestone-detail"
+                  >60% faster load times achieved</div
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
